@@ -40,6 +40,10 @@ services:
     labels:
       <<: *dd-labels
       com.datadoghq.tags.service: apache
+      com.datadoghq.ad.check_names: '["apache"]'
+      com.datadoghq.ad.init_configs: '[{}]'
+      com.datadoghq.ad.instances: '[{"apache_status_url":"http://%%host%%/server-status?auto"}]'
+      com.datadoghq.ad.logs: '[{"source":"apache","service":"apache"}]'
 
   api:
     build:
@@ -118,6 +122,10 @@ services:
     labels:
       <<: *dd-labels
       com.datadoghq.tags.service: rabbitmq
+      com.datadoghq.ad.check_names: '["rabbitmq"]'
+      com.datadoghq.ad.init_configs: '[{}]'
+      com.datadoghq.ad.instances: '[{"prometheus_plugin":{"url":"http://%%host%%:15692","unaggregated_endpoint":"detailed?family=queue_coarse_metrics&family=queue_consumer_count&family=channel_exchange_metrics&family=channel_queue_exchange_metrics&family=node_coarse_metrics"}}]'
+      com.datadoghq.ad.logs: '[{"source":"rabbitmq","service":"rabbitmq","log_processing_rules":[{"type":"multi_line","name":"logs_starts_with_equal_sign","pattern":"="}]}]'
 
   datadog-agent:
     image: gcr.io/datadoghq/agent:7
