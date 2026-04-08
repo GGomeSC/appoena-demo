@@ -83,7 +83,9 @@ window.APP_CONFIG = {
     defaultPrivacyLevel: "$(js_escape "${DD_RUM_DEFAULT_PRIVACY_LEVEL:-allow}")",
     allowedTracingUrls: $(js_array_from_csv "${DD_RUM_ALLOWED_TRACING_PATHS:-/api/}").map(function(path) {
       return window.location.origin + path;
-    })
+    }),
+    team: "$(js_escape "${DD_RUM_TEAM:-infra-cloud}")",
+    application: "$(js_escape "${DD_RUM_APPLICATION:-observability-demo}")"
   }
 };
 EOF

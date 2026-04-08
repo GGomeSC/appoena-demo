@@ -27,6 +27,13 @@ function initializeDdRum() {
     allowedTracingUrls: ddRumConfig.allowedTracingUrls,
   });
 
+  if (ddRumConfig.team || ddRumConfig.application) {
+    window.DD_RUM.setGlobalContext({
+      team: ddRumConfig.team,
+      application: ddRumConfig.application,
+    });
+  }
+
   window.DD_RUM.startSessionReplayRecording();
   window.__ddRumInitialized = true;
 }
