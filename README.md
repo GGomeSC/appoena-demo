@@ -1,115 +1,69 @@
-# CRUD FastAPI + Apache + RabbitMQ + Datadog
+# Appoena Observability Demo
 
-Demo local para gerar tráfego observável com:
+Um projeto de demonstração criado para ilustrar um fluxo completo de observabilidade em uma arquitetura orientada a eventos utilizando as ferramentas do Datadog.
 
-- `Apache` servindo uma UI estática e fazendo reverse proxy para a API
-- `FastAPI` com CRUD em memória de `items`
-- `RabbitMQ` recebendo eventos de `create`, `update` e `delete`
-- `Worker` consumindo a fila e registrando processamento
-- `Load Generator` opcional para gerar tráfego automático nos endpoints via Apache
-- `Datadog Agent` coletando traces, logs e métricas de runtime
+A aplicação conta com uma API que gerencia um CRUD de itens, publica as ações em uma fila de mensagens e um worker em background que consome e processa esses dados. Toda a comunicação e execução já está configurada para gerar telemetria.
 
-Para Data Streams Monitoring com RabbitMQ no Python, a aplicação usa `Kombu`, que é a biblioteca suportada pelo tracer do Datadog para esse cenário.
-O projeto usa apenas auto-instrumentação com `ddtrace-run` e variáveis de ambiente; não depende de spans manuais no código.
+<details>
+<summary><strong>Entendendo a Arquitetura</strong></summary>
 
-## Requisitos
+O ambiente roda inteiramente em contêineres e é composto por:
+- **Frontend (Apache)**: Servidor web entregando os arquivos estáticos, já integrado com Datadog RUM para monitoramento real do usuário.
+- **Backend API (FastAPI)**: Responsável por receber o tráfego HTTP e publicar as mudanças de estado na fila.
+- **RabbitMQ**: O broker de mensagens que interliga a API e o worker.
+- **Worker (Python)**: Consumidor que fica escutando a fila para processar os eventos assincronamente.
+- **Loadgen**: Um gerador de carga automatizado para simular uso da plataforma e popular os gráficos com dados.
+- **Datadog Agent**: O agente oficial encarregado de capturar logs, traces e métricas de toda a stack.
 
-- Docker e Docker Compose
-- Credenciais válidas do Datadog
-
-## Configuração
-
-1. Copie `.env.example` para `.env`.
-2. Preencha estas variáveis:
-   - `DD_API_KEY`
-   - `DD_SITE`
-   - `DD_ENV`
-   - `DD_SERVICE`
-   - `DD_VERSION`
-   - `DD_RUM_APPLICATION_ID`
-   - `DD_RUM_CLIENT_TOKEN`
-   - `DD_RUM_SITE`
-   - `DD_RUM_SERVICE`
-   - `DD_RUM_ENV`
-   - `DD_RUM_VERSION`
-   - `DD_RUM_SESSION_SAMPLE_RATE`
-   - `DD_RUM_SESSION_REPLAY_SAMPLE_RATE`
-   - `DD_RUM_TRACK_RESOURCES`
-   - `DD_RUM_TRACK_USER_INTERACTIONS`
-   - `DD_RUM_TRACK_LONG_TASKS`
-   - `DD_RUM_DEFAULT_PRIVACY_LEVEL`
-   - `DD_RUM_ALLOWED_TRACING_PATHS`
-
-3. Para o Terraform do Datadog, copie `datadog/terraform.tfvars.example` para `datadog/terraform.tfvars` e preencha:
-   - `datadog_api_key`
-   - `datadog_app_key`
-   - `datadog_api_url`
-
-Os serviços `api` e `worker` já saem com `DD_DATA_STREAMS_ENABLED=true` e `DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true` no `docker-compose.yml` para habilitar Data Streams Monitoring no fluxo RabbitMQ.
-As integrações automáticas relevantes também ficam explícitas no ambiente, como `DD_TRACE_FASTAPI_ENABLED=true`, `DD_TRACE_KOMBU_ENABLED=true` e `DD_LOGS_INJECTION=true`.
-Os serviços Python (`api`, `worker` e `loadgen`) emitem logs estruturados em JSON, com serialização explícita de stack traces em logs de erro. Os campos de correlação `dd.trace_id`, `dd.span_id`, `dd.service`, `dd.env` e `dd.version` são preservados no payload JSON quando o `ddtrace` injeta esses valores no `LogRecord`.
-Exceções não tratadas nos processos Python também passam pelo logger estruturado antes do encerramento do processo, evitando tracebacks multiline soltos em `stderr`.
-O frontend continua estático, mas o container Apache gera `/config.js` em runtime a partir do `.env`, evitando deixar a configuração do Datadog RUM hardcoded no repositório.
-
-## Execução
-
-```bash
-docker compose --env-file .env up --build
+```mermaid
+graph LR
+    Browser[Browser RUM] -->|HTTP| Apache[Apache Web]
+    Loadgen[Load Generator] -->|HTTP| Apache
+    Apache -->|Reverse Proxy| API[FastAPI]
+    API -->|Eventos| RabbitMQ[(RabbitMQ)]
+    RabbitMQ -->|Consumo| Worker[Worker Python]
 ```
+</details>
 
-A aplicação ficará disponível em:
+<details>
+<summary><strong>Subindo o ambiente localmente</strong></summary>
 
-- UI + API via Apache: `http://localhost:8080`
-- RabbitMQ Management: `http://localhost:15672`
+Antes de começar, garanta que você tenha o Docker instalado e suas credenciais do Datadog em mãos.
 
-O serviço `loadgen` sobe junto com o stack e gera ciclos contínuos de:
+1. Duplique o arquivo `.env.example` renomeando-o para `.env`.
+2. Edite o `.env` inserindo sua API Key do Datadog e as variáveis do RUM.
+3. Inicie os serviços rodando:
+   ```bash
+   docker compose up -d --build
+   ```
+4. A interface ficará disponível em `http://localhost:8080`.
+</details>
 
-- `GET /health`
-- `POST /api/items`
-- `GET /api/items`
-- `GET /api/items/{id}`
-- `PUT /api/items/{id}`
-- `DELETE /api/items/{id}`
+<details>
+<summary><strong>Destaques de Observabilidade</strong></summary>
 
-Você pode controlar a cadência pelo `.env`:
+- **APM de ponta a ponta**: É possível acompanhar o ciclo de vida da requisição desde o navegador até o consumidor da fila.
+- **Logs Correlacionados**: A API, o worker e o loadgen geram logs estruturados em JSON contendo o trace_id, facilitando a investigação de problemas.
+- **Monitoramento de Filas**: Uso do Data Streams Monitoring para avaliar a saúde e o throughput do RabbitMQ.
+</details>
 
-- `LOADGEN_INTERVAL_SECONDS=2`
-- `LOADGEN_TIMEOUT_SECONDS=10`
+<details>
+<summary><strong>Provisionando Recursos com Terraform</strong></summary>
 
-## Endpoints
+O projeto inclui configurações do Terraform na pasta `datadog/` para criar painéis e monitores diretamente na sua conta.
 
-- `GET /health`
-- `GET /api/items`
-- `GET /api/items/{id}`
-- `POST /api/items`
-- `PUT /api/items/{id}`
-- `DELETE /api/items/{id}`
-
-## Validando a instrumentação no Datadog
-
-1. Abra `http://localhost:8080` e crie, edite e remova itens.
-   Como alternativa, deixe o `loadgen` gerar tráfego automaticamente para popular o Live Tail e o APM.
-2. Em APM, procure pelos serviços `${DD_SERVICE}-api` e `${DD_SERVICE}-worker`.
-3. Procure também pelo serviço `${DD_SERVICE}-loadgen` se quiser ver a origem dos requests automáticos.
-4. Valide traces do FastAPI para os endpoints `/api/items`.
-5. Valide spans automáticos de HTTP e `Kombu` para publish/consume.
-6. Em Logs, filtre pelos containers `appoena-demo-api`, `appoena-demo-worker` e `appoena-demo-loadgen` e confirme que os eventos JSON contêm `dd.trace_id` e `dd.span_id` quando houver spans ativos.
-   Para validar stack traces, provoque uma falha controlada e confirme o campo `stack` no evento JSON.
-7. Em Data Streams Monitoring, valide o caminho produtor `api` -> fila RabbitMQ -> consumidor `worker`.
-8. Em Metrics ou Runtime Metrics, confira atividade da aplicação, do worker e do load generator.
-
-Observação: na tela de Setup do Data Streams, o que aparece são os serviços instrumentados que produzem/consomem mensagens, não o broker RabbitMQ como um serviço APM.
-Observação: `DD_LOGS_INJECTION` só se aplica aos processos Python instrumentados com `ddtrace-run`. O Apache permanece com logs em texto, com `LogLevel warn`, para evitar forçar um formato JSON parcial ou frágil no `httpd` base da demo.
-Observação: `docker compose up` prefixa cada linha com o nome do container. Para ver a linha JSON bruta exatamente como o Datadog ingere, use `docker logs <container>`.
-
-## Testes
-
-```bash
-pytest api/tests worker/tests
-```
-
-## Notas
-
-- A persistência é em memória; reiniciar o container da API limpa os dados.
-- O Apache registra logs em texto e permanece em `warning`.
-- O worker faz deduplicação em memória por `event_id` apenas para a execução corrente.
+1. Navegue até o diretório:
+   ```bash
+   cd datadog/
+   ```
+2. Crie o arquivo de variáveis a partir do template:
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+3. Preencha o arquivo `terraform.tfvars` com suas credenciais de API Key e APP Key do Datadog.
+4. Inicialize e aplique a infraestrutura:
+   ```bash
+   terraform init
+   terraform apply
+   ```
+</details>
