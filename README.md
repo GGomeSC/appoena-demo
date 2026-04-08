@@ -1,19 +1,6 @@
 # Appoena Observability Demo
 
-Um projeto de demonstração criado para ilustrar um fluxo completo de observabilidade em uma arquitetura orientada a eventos utilizando as ferramentas do Datadog.
-
-A aplicação conta com uma API que gerencia um CRUD de itens, publica as ações em uma fila de mensagens e um worker em background que consome e processa esses dados. Toda a comunicação e execução já está configurada para gerar telemetria.
-
-<details>
-<summary><strong>Entendendo a Arquitetura</strong></summary>
-
-O ambiente roda inteiramente em contêineres e é composto por:
-- **Frontend (Apache)**: Servidor web entregando os arquivos estáticos, já integrado com Datadog RUM para monitoramento real do usuário.
-- **Backend API (FastAPI)**: Responsável por receber o tráfego HTTP e publicar as mudanças de estado na fila.
-- **RabbitMQ**: O broker de mensagens que interliga a API e o worker.
-- **Worker (Python)**: Consumidor que fica escutando a fila para processar os eventos assincronamente.
-- **Loadgen**: Um gerador de carga automatizado para simular uso da plataforma e popular os gráficos com dados.
-- **Datadog Agent**: O agente oficial encarregado de capturar logs, traces e métricas de toda a stack.
+Projeto de demonstração criado para ilustrar um fluxo completo de observabilidade em uma arquitetura Event-Driven utilizando as ferramentas do Datadog.
 
 ```mermaid
 graph LR
@@ -23,6 +10,20 @@ graph LR
     API -->|Eventos| RabbitMQ[(RabbitMQ)]
     RabbitMQ -->|Consumo| Worker[Worker Python]
 ```
+
+O projeto conta com uma API que gerencia um CRUD de itens, publica as ações em uma fila de mensagens e um worker em background que consome e processa esses dados.
+Toda a comunicação e execução já está configurada para gerar telemetria.
+
+<details>
+<summary><strong>Entendendo a Arquitetura</strong></summary>
+
+O ambiente roda inteiramente contêinerizado e é composto por:
+- **Frontend (Apache)**: Web-Server provendo os arquivos estáticos, integrado com Datadog RUM.
+- **Backend API (FastAPI)**: Responsável por receber o tráfego HTTP e publicar as mudanças de estado na fila.
+- **RabbitMQ**: O broker de mensagens que interliga a API e o worker.
+- **Worker (Python)**: Consumidor que fica escutando a fila para processar os eventos assincronamente.
+- **Loadgen**: Um gerador de carga automatizado para simular uso da plataforma e popular os gráficos com dados.
+- **Datadog Agent**: O agente encarregado de capturar logs, traces e métricas de toda a stack.
 </details>
 
 <details>
@@ -42,9 +43,9 @@ Antes de começar, garanta que você tenha o Docker instalado e suas credenciais
 <details>
 <summary><strong>Destaques de Observabilidade</strong></summary>
 
-- **APM de ponta a ponta**: É possível acompanhar o ciclo de vida da requisição desde o navegador até o consumidor da fila.
-- **Logs Correlacionados**: A API, o worker e o loadgen geram logs estruturados em JSON contendo o trace_id, facilitando a investigação de problemas.
-- **Monitoramento de Filas**: Uso do Data Streams Monitoring para avaliar a saúde e o throughput do RabbitMQ.
+- **RUM**: O Datadog RUM está parametrizado com o `allowedTracingUrls`, permitindo monitorar a experiência do usuário correlacionando com os traces.
+- **APM**: É possível acompanhar o ciclo de vida da requisição por completo.
+- **Logs**: A maior parte da stack gera logs em JSON que são injetados com o trace_id e span_id, correlacionando os traces de ponta a ponta.
 </details>
 
 <details>
