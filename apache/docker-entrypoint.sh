@@ -66,12 +66,46 @@ js_array_from_csv() {
   printf ']'
 }
 
+js_sdk_url_from_site() {
+  site=$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')
+
+  case "$site" in
+    datadoghq.com)
+      site_path="us1"
+      ;;
+    us3.datadoghq.com)
+      site_path="us3"
+      ;;
+    us5.datadoghq.com)
+      site_path="us5"
+      ;;
+    datadoghq.eu)
+      site_path="eu"
+      ;;
+    ap1.datadoghq.com)
+      site_path="ap1"
+      ;;
+    ap2.datadoghq.com)
+      site_path="ap2"
+      ;;
+    ddog-gov.com)
+      site_path="us1-fed"
+      ;;
+    *)
+      site_path="us1"
+      ;;
+  esac
+
+  printf 'https://www.datadoghq-browser-agent.com/%s/v6/datadog-rum.js' "$site_path"
+}
+
 cat > /usr/local/apache2/htdocs/config.js <<EOF
 window.APP_CONFIG = {
   ddRum: {
     applicationId: "$(js_escape "${DD_RUM_APPLICATION_ID:-}")",
     clientToken: "$(js_escape "${DD_RUM_CLIENT_TOKEN:-}")",
     site: "$(js_escape "${DD_RUM_SITE:-}")",
+    sdkUrl: "$(js_sdk_url_from_site "${DD_RUM_SITE:-}")",
     service: "$(js_escape "${DD_RUM_SERVICE:-}")",
     env: "$(js_escape "${DD_RUM_ENV:-}")",
     version: "$(js_escape "${DD_RUM_VERSION:-}")",

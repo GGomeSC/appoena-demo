@@ -4,6 +4,61 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Observability Demo</title>
+  <link rel="icon" href="data:,">
+  <script src="/config.js"></script>
+  <script>
+    (function bootstrapDdRum(windowRef, documentRef) {
+      const ddRumConfig = windowRef.APP_CONFIG && windowRef.APP_CONFIG.ddRum;
+
+      if (
+        !ddRumConfig ||
+        !ddRumConfig.applicationId ||
+        !ddRumConfig.clientToken ||
+        !ddRumConfig.sdkUrl
+      ) {
+        return;
+      }
+
+      const ddRum = windowRef.DD_RUM = windowRef.DD_RUM || {
+        q: [],
+        onReady: function onReady(callback) {
+          ddRum.q.push(callback);
+        },
+      };
+
+      ddRum.onReady(function initializeDdRum() {
+        windowRef.DD_RUM.init({
+          applicationId: ddRumConfig.applicationId,
+          clientToken: ddRumConfig.clientToken,
+          site: ddRumConfig.site,
+          service: ddRumConfig.service,
+          env: ddRumConfig.env,
+          version: ddRumConfig.version,
+          sessionSampleRate: ddRumConfig.sessionSampleRate,
+          sessionReplaySampleRate: ddRumConfig.sessionReplaySampleRate,
+          trackResources: ddRumConfig.trackResources,
+          trackUserInteractions: ddRumConfig.trackUserInteractions,
+          trackLongTasks: ddRumConfig.trackLongTasks,
+          defaultPrivacyLevel: ddRumConfig.defaultPrivacyLevel,
+          allowedTracingUrls: ddRumConfig.allowedTracingUrls,
+        });
+
+        if (ddRumConfig.team) {
+          windowRef.DD_RUM.setGlobalContextProperty("team", ddRumConfig.team);
+        }
+        if (ddRumConfig.application) {
+          windowRef.DD_RUM.setGlobalContextProperty("application", ddRumConfig.application);
+        }
+      });
+
+      const rumSdkScript = documentRef.createElement("script");
+      const firstScript = documentRef.getElementsByTagName("script")[0];
+
+      rumSdkScript.src = ddRumConfig.sdkUrl;
+      rumSdkScript.async = false;
+      firstScript.parentNode.insertBefore(rumSdkScript, firstScript);
+    })(window, document);
+  </script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -47,8 +102,6 @@
     </section>
   </div>
 
-  <script src="/config.js"></script>
-  <script src="/rum-loader.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
