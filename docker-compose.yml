@@ -20,7 +20,7 @@ services:
     container_name: appoena-demo-apache
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8080:80"
     environment:
@@ -63,6 +63,18 @@ services:
       DD_DATA_STREAMS_ENABLED: "true"
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2F
       RABBITMQ_QUEUE: items.events
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     labels:
       <<: *dd-labels
       com.datadoghq.tags.service: ${DD_SERVICE}-api
@@ -94,6 +106,8 @@ services:
     container_name: appoena-demo-loadgen
     depends_on:
       <<: *python-common-depends_on
+      api:
+        condition: service_healthy
       apache:
         condition: service_started
     environment:
@@ -101,8 +115,8 @@ services:
       DD_SERVICE: ${DD_SERVICE}-loadgen
       LOG_LEVEL: ${LOG_LEVEL}
       LOADGEN_BASE_URL: http://apache
-      LOADGEN_INTERVAL_SECONDS:
-      LOADGEN_TIMEOUT_SECONDS:
+      LOADGEN_INTERVAL_SECONDS: ${LOADGEN_INTERVAL_SECONDS:-2}
+      LOADGEN_TIMEOUT_SECONDS: ${LOADGEN_TIMEOUT_SECONDS:-10}
     labels:
       <<: *dd-labels
       com.datadoghq.tags.service: ${DD_SERVICE}-loadgen
@@ -145,5 +159,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
-    ports:
-      - "8126:8126"
