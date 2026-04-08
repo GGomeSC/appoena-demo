@@ -42,8 +42,8 @@ resource "datadog_software_catalog" "system_definition" {
       ]
     }
     spec = {
-      tier      = "tier1"
-      lifecycle = "production"
+      tier      = "1"
+      lifecycle = "development"
       components = concat(
         [for service_name in local.software_catalog_services : "service:${service_name}"],
         ["queue:items-events"]
@@ -76,8 +76,8 @@ resource "datadog_software_catalog" "service_definitions" {
       ]
     }
     spec = {
-      tier      = "tier1"
-      lifecycle = "production"
+      tier      = "1"
+      lifecycle = "development"
       type      = "web"
       languages = each.value == "appoena-demo-frontend" ? ["javascript"] : ["python"]
       dependsOn = local.service_dependencies[each.value]
@@ -107,8 +107,8 @@ resource "datadog_software_catalog" "queue_definition" {
       ]
     }
     spec = {
-      tier      = "tier1"
-      lifecycle = "production"
+      tier      = "1"
+      lifecycle = "development"
     }
   })
 }
