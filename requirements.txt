@@ -1,0 +1,8 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.1
+kombu==5.5.4
+ddtrace==4.6.6
+pydantic-settings==2.9.1
+python-json-logger==3.3.0
+httpx==0.28.1
+pytest==8.3.5

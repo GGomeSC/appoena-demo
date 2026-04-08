@@ -1,0 +1,139 @@
+x-dd-labels: &dd-labels
+  com.datadoghq.tags.env: ${DD_ENV}
+  com.datadoghq.tags.version: ${DD_VERSION}
+
+x-python-common-env: &python-common-env
+  DD_ENV: ${DD_ENV}
+  DD_VERSION: ${DD_VERSION}
+  DD_AGENT_HOST: datadog-agent
+  DD_RUNTIME_METRICS_ENABLED: "true"
+
+x-python-common-depends_on: &python-common-depends_on
+  datadog-agent:
+    condition: service_started
+
+services:
+  apache:
+    build:
+      context: .
+      dockerfile: apache/Dockerfile
+    container_name: appoena-demo-apache
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "8080:80"
+    environment:
+      DD_RUM_APPLICATION_ID: ${DD_RUM_APPLICATION_ID}
+      DD_RUM_CLIENT_TOKEN: ${DD_RUM_CLIENT_TOKEN}
+      DD_RUM_SITE: ${DD_RUM_SITE}
+      DD_RUM_SERVICE: ${DD_RUM_SERVICE}
+      DD_RUM_ENV: ${DD_RUM_ENV}
+      DD_RUM_VERSION: ${DD_RUM_VERSION}
+      DD_RUM_SESSION_SAMPLE_RATE: ${DD_RUM_SESSION_SAMPLE_RATE}
+      DD_RUM_SESSION_REPLAY_SAMPLE_RATE: ${DD_RUM_SESSION_REPLAY_SAMPLE_RATE}
+      DD_RUM_TRACK_RESOURCES: ${DD_RUM_TRACK_RESOURCES}
+      DD_RUM_TRACK_USER_INTERACTIONS: ${DD_RUM_TRACK_USER_INTERACTIONS}
+      DD_RUM_TRACK_LONG_TASKS: ${DD_RUM_TRACK_LONG_TASKS}
+      DD_RUM_DEFAULT_PRIVACY_LEVEL: ${DD_RUM_DEFAULT_PRIVACY_LEVEL}
+      DD_RUM_ALLOWED_TRACING_PATHS: ${DD_RUM_ALLOWED_TRACING_PATHS}
+    labels:
+      <<: *dd-labels
+      com.datadoghq.tags.service: apache
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: appoena-demo-api
+    depends_on:
+      <<: *python-common-depends_on
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *python-common-env
+      DD_SERVICE: ${DD_SERVICE}-api
+      LOG_LEVEL: ${LOG_LEVEL}
+      DD_DATA_STREAMS_ENABLED: "true"
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: items.events
+    labels:
+      <<: *dd-labels
+      com.datadoghq.tags.service: ${DD_SERVICE}-api
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: appoena-demo-worker
+    depends_on:
+      <<: *python-common-depends_on
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *python-common-env
+      DD_SERVICE: ${DD_SERVICE}-worker
+      LOG_LEVEL: ${LOG_LEVEL}
+      DD_DATA_STREAMS_ENABLED: "true"
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: items.events
+    labels:
+      <<: *dd-labels
+      com.datadoghq.tags.service: ${DD_SERVICE}-worker
+
+  loadgen:
+    build:
+      context: .
+      dockerfile: loadgen/Dockerfile
+    container_name: appoena-demo-loadgen
+    depends_on:
+      <<: *python-common-depends_on
+      apache:
+        condition: service_started
+    environment:
+      <<: *python-common-env
+      DD_SERVICE: ${DD_SERVICE}-loadgen
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOADGEN_BASE_URL: http://apache
+      LOADGEN_INTERVAL_SECONDS:
+      LOADGEN_TIMEOUT_SECONDS:
+    labels:
+      <<: *dd-labels
+      com.datadoghq.tags.service: ${DD_SERVICE}-loadgen
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: appoena-demo-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    labels:
+      <<: *dd-labels
+      com.datadoghq.tags.service: rabbitmq
+
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: datadog-agent
+    pid: host
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: ${DD_SITE}
+      DD_ENV: ${DD_ENV}
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_CONTAINER_EXCLUDE_LOGS: name:datadog-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"
